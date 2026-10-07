@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RK sprite</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">RK</span><strong>RK sprite</strong></div>
+      <div class="project-title"><span id="projectName">未打开工程</span><span id="dirtyMark" aria-label="未保存"></span><span id="saveStatus" role="status" aria-live="polite"></span></div>
+      <div class="top-actions">
+        <button id="newProject" title="新建工程" type="button"><i data-lucide="file-plus-2"></i><span>新建</span></button>
+        <button id="openProject" title="打开工程" type="button"><i data-lucide="folder-open"></i><span>打开</span></button>
+        <button id="undo" class="icon" title="撤销 (Ctrl+Z)" aria-label="撤销" type="button" disabled><i data-lucide="undo-2"></i></button>
+        <button id="redo" class="icon" title="重做 (Ctrl+Y / Ctrl+Shift+Z)" aria-label="重做" type="button" disabled><i data-lucide="redo-2"></i></button>
+        <button id="saveProject" title="保存工程 (Ctrl+S)" type="button"><i data-lucide="save"></i><span>保存</span></button>
+        <span class="separator"></span>
+        <button id="videoImport" class="accent" title="从视频选帧" type="button"><i data-lucide="film"></i><span>视频选帧</span></button>
+        <button id="pngImport" title="导入 PNG 序列或 Atlas" type="button"><i data-lucide="images"></i><span>导入序列 / Atlas</span></button>
+        <button id="exportAtlas" title="导出分层 Atlas" type="button"><i data-lucide="package-open"></i><span>导出 Atlas</span></button>
+        <button id="syncGodot" title="选择 Godot 工程并同步可运行的分层动画" type="button"><i data-lucide="send"></i><span>同步 Godot</span></button>
+      </div>
+    </header>
+
+    <main class="workbench">
+      <aside class="sidebar">
+        <div class="section-heading"><h2>动作</h2><button id="addAnimation" class="icon" title="新建动作" aria-label="新建动作" type="button"><i data-lucide="plus"></i></button></div>
+        <div id="animationList" class="animation-list"></div>
+        <div class="section-heading section-divider"><h2>图层</h2><button id="addLayer" class="icon" title="添加图层" aria-label="添加图层" type="button"><i data-lucide="plus"></i></button></div>
+        <div id="layerList" class="layer-list"></div>
+        <div class="sidebar-bottom">
+          <label>画布宽度 <input id="canvasWidth" type="number" min="1" max="8192" step="1"></label>
+          <label>画布高度 <input id="canvasHeight" type="number" min="1" max="8192" step="1"></label>
+        </div>
+      </aside>
+
+      <section class="center">
+        <div class="canvas-toolbar">
+          <div class="tools" role="group" aria-label="画布工具">
+            <button data-tool="select" class="tool selected" title="选择和移动图层" aria-label="选择" type="button"><i data-lucide="mouse-pointer-2"></i></button>
+            <button data-tool="pivot" class="tool" title="点击素材确定锁定旋转的锚点" aria-label="设置锚点" type="button"><i data-lucide="crosshair"></i></button>
+            <button data-tool="align" class="tool" title="拖动画布对齐当前帧角色及其图层" aria-label="对齐角色" type="button"><i data-lucide="move"></i></button>
+          </div>
+          <span class="separator"></span>
+          <button id="zoomOut" class="icon" title="缩小" aria-label="缩小" type="button"><i data-lucide="minus"></i></button>
+          <span id="zoomText" class="zoom-text">100%</span>
+          <button id="zoomIn" class="icon" title="放大" aria-label="放大" type="button"><i data-lucide="plus"></i></button>
+          <button id="fitCanvas" class="icon" title="适应画布" aria-label="适应画布" type="button"><i data-lucide="maximize"></i></button>
+          <label class="check-control"><input id="onionSkin" type="checkbox"> 残影</label>
+          <label class="check-control"><input id="showAxes" type="checkbox"> 参考轴</label>
+          <div class="grid-controls">
+            <label class="check-control"><input id="showPixelGrid" type="checkbox"> 像素网格</label>
+            <label class="grid-step"><input id="gridStep" aria-label="网格步长" type="number" min="1" max="256" step="1" value="8"> px</label>
+            <label class="check-control" title="拖动时将主图底部中心或图层锚点吸附到画布网格"><input id="snapGrid" type="checkbox" checked> 吸附</label>
+          </div>
+          <span class="spacer"></span>
+        </div>
+        <div class="stage-wrap" id="stageWrap">
+          <canvas id="stage" aria-label="精灵编辑画布"></canvas>
+          <div id="stageGuides" class="stage-guides" aria-hidden="true">
+            <div class="pixel-grid"></div>
+            <div class="axis axis-x"><span>X</span></div>
+            <div class="axis axis-y"><span>Y</span></div>
+            <span class="axis-origin">0</span>
+            <span class="snap-marker"></span>
+          </div>
+        </div>
+        <div class="timeline">
+          <div class="timeline-heading">
+            <div><strong id="timelineTitle">时间轴</strong><span id="timelineMeta"></span></div>
+            <div class="timeline-actions">
+              <button id="play" class="icon" title="播放或暂停 (空格)" aria-label="播放" type="button"><i data-lucide="play"></i></button>
+              <label class="playback-speed" title="当前动作的实际播放倍率，保存后同步到 Godot">动画速度 <input id="playbackSpeed" type="number" min="0.1" max="8" step="0.1" value="1" disabled> ×</label>
+              <button id="duplicateFrame" class="icon" title="复制选中帧" aria-label="复制帧" type="button"><i data-lucide="copy-plus"></i></button>
+              <button id="moveFrameLeft" class="icon" title="当前帧前移" aria-label="当前帧前移" type="button"><i data-lucide="arrow-left"></i></button>
+              <button id="moveFrameRight" class="icon" title="当前帧后移" aria-label="当前帧后移" type="button"><i data-lucide="arrow-right"></i></button>
+              <button id="removeFrame" class="icon" title="从动作移除当前帧" aria-label="移除帧" type="button"><i data-lucide="trash-2"></i></button>
+              <label>FPS <input id="fps" type="number" min="1" max="60" step="1" value="12"></label>
+              <label>帧时长 <input id="frameDuration" type="number" min="1" max="60000" step="1" value="83"> ms</label>
+            </div>
+          </div>
+          <div id="filmstrip" class="filmstrip"></div>
+        </div>
+      </section>
+
+      <aside class="inspector">
+        <section id="frameAlignment" hidden>
+          <div class="section-heading"><h2>角色对齐</h2></div>
+          <div id="frameAlignTitle" class="inspector-name"></div>
+          <div class="property-grid">
+            <label>偏移 X <input id="bodyOffsetX" type="number" step="1" min="-8192" max="8192"></label>
+            <label>偏移 Y <input id="bodyOffsetY" type="number" step="1" min="-8192" max="8192"></label>
+          </div>
+          <div class="frame-align-actions">
+            <label class="check-control"><input id="frameDisabled" type="checkbox"> 禁用此帧</label>
+            <button id="resetAlignment" class="icon" type="button" title="重置当前帧角色偏移" aria-label="重置对齐"><i data-lucide="rotate-ccw"></i></button>
+          </div>
+        </section>
+        <div class="section-heading"><h2>图层属性</h2></div>
+        <div id="inspectorEmpty" class="inspector-empty">选择图层与帧</div>
+        <div id="inspectorBody" hidden>
+          <div id="inspectorName" class="inspector-name"></div>
+          <label>槽位 <input id="layerSlot" type="text" placeholder="例如 upper / hair" maxlength="32"></label>
+          <label class="check-control"><input id="layerBehind" type="checkbox"> 当前帧在角色后方</label>
+          <div class="property-grid">
+            <label>X <input id="positionX" type="number" step="1"></label>
+            <label>Y <input id="positionY" type="number" step="1"></label>
+            <label>旋转 <input id="rotation" type="number" step="1"></label>
+            <label>缩放 <input id="scale" type="number" min="0.01" max="20" step="0.01"></label>
+            <label>锚点 X <input id="pivotX" type="number" min="0" max="100" step="1"></label>
+            <label>锚点 Y <input id="pivotY" type="number" min="0" max="100" step="1"></label>
+          </div>
+          <div class="inspector-actions">
+            <button id="loadLayerImage" title="只给当前帧绑定一张 PNG" type="button"><i data-lucide="image-plus"></i><span>当前帧素材</span></button>
+            <button id="loadLayerStatic" title="给当前动作的每帧绑定同一张 PNG" type="button"><i data-lucide="copy"></i><span>固定装备（全部帧）</span></button>
+            <button id="loadLayerSequence" title="导入等量 PNG 序列、Atlas PNG+JSON，或网格图集" type="button"><i data-lucide="files"></i><span>逐帧序列 / Atlas</span></button>
+            <button id="copyLayerFrame" title="把本帧素材和变换复制到当前动作全部帧" type="button"><i data-lucide="layers-2"></i><span>应用到全部帧</span></button>
+            <button id="copyLayerTransform" title="只复制当前帧的位置、旋转、缩放与锚点；目标帧素材保持不变" type="button"><i data-lucide="copy-check"></i><span>仅复制变换到有素材帧</span></button>
+            <div class="inspector-action-row">
+              <button id="copyFrameLayer" title="复制当前帧的图层素材与变换" type="button"><i data-lucide="copy"></i><span>复制本帧</span></button>
+              <button id="pasteFrameLayer" title="粘贴到当前动作的选中帧" type="button"><i data-lucide="clipboard-paste"></i><span>粘贴本帧</span></button>
+            </div>
+            <button id="clearFrameLayer" title="只移除当前帧的图层绑定" type="button"><i data-lucide="image-off"></i><span>移除本帧素材</span></button>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <dialog id="welcome" class="welcome-dialog">
+    <div class="welcome-mark">RK</div>
+    <h2>RK sprite</h2>
+    <p>选择一个工程，开始制作序列帧。</p>
+    <div class="dialog-actions">
+      <button id="welcomeNew" class="accent" type="button"><i data-lucide="file-plus-2"></i>新建工程</button>
+      <button id="welcomeOpen" type="button"><i data-lucide="folder-open"></i>打开工程</button>
+    </div>
+  </dialog>
+
+  <dialog id="videoDialog" class="video-dialog">
+    <div class="dialog-header"><div><h2>视频选帧</h2><span id="videoSourceName">未选择视频</span></div><button id="closeVideo" class="icon" title="关闭" aria-label="关闭" type="button"><i data-lucide="x"></i></button></div>
+    <div class="video-layout">
+      <section class="video-main">
+        <div class="video-view">
+          <div class="video-view-tabs" role="group" aria-label="预览模式">
+            <button id="showSourceVideo" type="button" class="selected">视频</button>
+            <button id="showFramePreview" type="button" disabled>选中帧</button>
+            <button id="expandVideoPreview" class="icon" type="button" title="放大预览" aria-label="放大预览" aria-pressed="false"><i data-lucide="maximize-2"></i></button>
+          </div>
+          <video id="sourceVideo" controls preload="metadata"></video>
+          <canvas id="framePreview" aria-label="选中帧大图预览" hidden></canvas>
+          <span id="previewCaption" hidden></span>
+        </div>
+        <div class="video-controls">
+          <button id="selectVideo" type="button"><i data-lucide="folder-open"></i>选择视频</button>
+          <label>起点 <input id="trimStart" type="number" min="0" step="0.01" value="0"> s</label>
+          <label>终点 <input id="trimEnd" type="number" min="0" step="0.01" value="0"> s</label>
+          <label>取帧方式
+            <select id="samplingMode">
+              <option value="interval">每段取帧</option>
+              <option value="fps">按帧率选候选帧</option>
+            </select>
+          </label>
+          <label id="sampleIntervalField">每 <input id="sampleInterval" type="number" min="0.01" max="60" step="0.01" value="0.5"> 秒取 <input id="framesPerInterval" type="number" min="1" max="60" step="1" value="1"> 帧</label>
+          <label id="sampleFpsField" hidden>采样 <input id="sampleFps" type="number" min="1" max="60" step="1" value="12"> fps</label>
+          <button id="extractFrames" class="accent" type="button"><i data-lucide="scan-line"></i>提取候选帧</button>
+        </div>
+        <div class="candidate-heading"><strong>候选帧 <span id="candidateCount">0</span></strong><div><button id="selectAllFrames" type="button">全选</button><button id="clearFrames" type="button">清空</button></div></div>
+        <div id="candidates" class="candidates"></div>
+      </section>
+      <aside class="video-side">
+        <h3>生成动作</h3>
+        <label>动作名称 <input id="newAnimationName" type="text" value="idle" maxlength="64"></label>
+        <label>播放帧率 <input id="newAnimationFps" type="number" min="1" max="60" value="12"></label>
+        <label>帧时长来源 <select id="timingMode"><option value="uniform">统一帧率</option><option value="source">保留选中帧的时间间隔</option></select></label>
+        <div class="selected-heading"><strong>保留顺序 <span id="selectedCount">0</span></strong></div>
+        <div id="selectedFrames" class="selected-frames"></div>
+        <div class="video-footer"><p id="videoStatus" role="status"></p><button id="createSequence" class="accent" type="button" disabled><i data-lucide="arrow-right"></i>生成序列</button></div>
+      </aside>
+    </div>
+    <canvas id="captureCanvas" hidden></canvas>
+  </dialog>
+
+  <dialog id="layerDialog" class="small-dialog">
+    <form id="layerForm" method="dialog">
+      <h2 id="layerDialogTitle">添加图层</h2>
+      <label>名称 <input id="newLayerName" required maxlength="40" placeholder="例如：上衣 / 武器"></label>
+      <label>用途 <select id="newLayerKind"><option value="equipment">装备层（独立 Atlas）</option><option value="preview">武器 / 特效预览（不导出）</option><option value="paint" hidden>旧绘制层（只读）</option></select></label>
+      <label id="newSlotRow">装备槽 <input id="newLayerSlot" placeholder="upper" maxlength="32"></label>
+      <div class="dialog-actions"><button id="cancelLayer" type="button">取消</button><button id="layerSubmit" class="accent" type="submit">添加</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="gridDialog" class="small-dialog grid-dialog">
+    <form id="gridForm">
+      <h2>切分网格图集</h2>
+      <div id="gridSourceSize" class="grid-source-size"></div>
+      <canvas id="gridPreview" aria-label="网格切分预览"></canvas>
+      <div class="property-grid">
+        <label>单帧宽 <input id="cellWidth" type="number" min="1" max="8192" required></label>
+        <label>单帧高 <input id="cellHeight" type="number" min="1" max="8192" required></label>
+        <label>左边距 <input id="marginX" type="number" min="0" value="0" required></label>
+        <label>上边距 <input id="marginY" type="number" min="0" value="0" required></label>
+        <label>列间距 <input id="gapX" type="number" min="0" value="0" required></label>
+        <label>行间距 <input id="gapY" type="number" min="0" value="0" required></label>
+        <label>帧数 <input id="gridCount" type="number" min="0" max="240" value="0" required></label>
+      </div>
+      <div id="gridStatus" role="status" class="grid-source-size"></div>
+      <div class="dialog-actions"><button id="cancelGrid" type="button">取消</button><button class="accent" type="submit">确认切分</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="nameDialog" class="small-dialog">
+    <form id="nameForm" method="dialog">
+      <h2 id="nameDialogTitle">名称</h2>
+      <label>名称 <input id="nameInput" required maxlength="64"></label>
+      <div class="dialog-actions"><button id="cancelName" type="button">取消</button><button class="accent" type="submit">确定</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="confirmDialog" class="small-dialog">
+    <h2 id="confirmTitle">确认操作</h2>
+    <p id="confirmMessage"></p>
+    <div class="dialog-actions"><button id="confirmCancel" type="button">取消</button><button id="confirmAccept" class="accent" type="button">确定</button></div>
+  </dialog>
+
+  <dialog id="closeDialog" class="small-dialog">
+    <h2>退出 RK sprite</h2>
+    <p>当前工程有未保存的修改。</p>
+    <div class="close-actions">
+      <button id="cancelClose" type="button">取消</button>
+      <button id="discardClose" type="button">放弃并退出</button>
+      <button id="saveAndClose" class="accent" type="button"><i data-lucide="save"></i>保存并退出</button>
+    </div>
+  </dialog>
+
+  <div id="toast" role="status"></div>
+  <script src="../node_modules/lucide/dist/umd/lucide.min.js"></script>
+  <script type="module" src="app.mjs"></script>
+</body>
+</html>
